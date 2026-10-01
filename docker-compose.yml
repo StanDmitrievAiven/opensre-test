@@ -1,0 +1,46 @@
+# Stateless OpenSRE plus Postgres.
+# The app has no volume. DATABASE_URL is the durable store.
+# Local Postgres password is the upstream dev default.
+#
+#   docker compose up --build
+#
+# External Postgres (Nevia and others require sslmode=require): set DATABASE_URL
+# in .env, then start only the app: docker compose up --build opensre --no-deps
+services:
+  opensre:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      MODE: ${MODE:-web}
+      PORT: ${PORT:-8000}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://opensre:opensre@postgres:5432/opensre}
+      LLM_PROVIDER: ${LLM_PROVIDER:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      TRUSTEDROUTER_API_KEY: ${TRUSTEDROUTER_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: opensre
+      POSTGRES_USER: opensre
+      POSTGRES_PASSWORD: opensre
+    ports:
+      - "5432:5432"
+    volumes:
+      - opensre-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U opensre -d opensre"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  opensre-pg:
